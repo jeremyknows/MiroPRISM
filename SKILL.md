@@ -12,7 +12,7 @@ license: MIT
 compatibility: Works with any agent that can spawn subagents
 metadata:
   author: jeremyknows
-  version: "1.0.0"
+  version: "1.1.0"
 ---
 
 # MiroPRISM v1 — Adversarial Two-Round Review Protocol
@@ -705,16 +705,42 @@ analysis/miroprism/
 
 ## Post-Launch Validation Checklist
 
-Track these metrics across the first 10 real MiroPRISM runs:
+Track these metrics across the first 10 real MiroPRISM runs.
 
-1. **R1→R2 finding delta** — How many new findings surface in R2 that weren't in R1? If consistently <10%, consider dropping to 1 round.
-2. **Verdict change rate** — % of reviewers changing verdict R1→R2. If >60%, revisit broadcast vs selective pairing.
-3. **UNCERTAIN usage rate** — Are reviewers using UNCERTAIN genuinely? Check for 0% (too confident) and >50% (avoidance).
-4. **Budget vs Standard quality gap** — Does Budget (3 reviewers) miss HIGH findings that Standard catches?
-5. **Reviewer count sensitivity** — On 2 runs, use 7 reviewers instead of 5. Does [HIGH] finding count change?
-6. **Injection resistance** — On adversarial content, does the structured finding template hold? Check R1-digest-log.md sanitization counts.
+**After every run, append one row to `analysis/miroprism/metrics.tsv`:**
+```
+date	slug	verdict_change_rate	uncertain_rate	r1_finding_count	r2_new_finding_count	high_finding_count	unresolved_disagreement_count
+```
 
-Decisions after 10 runs: round cap, reviewer count default, broadcast vs selective pairing, Budget default domain specialist.
+Example row:
+```
+2026-03-15	auth-flow-refactor	0.40	0.12	10	3	4	2
+```
+
+Create the file on first run:
+```bash
+echo "date\tslug\tverdict_change_rate\tuncertain_rate\tr1_finding_count\tr2_new_finding_count\thigh_finding_count\tunresolved_disagreement_count" > analysis/miroprism/metrics.tsv
+```
+
+**Metrics to track:**
+
+1. **R1→R2 finding delta** — `r2_new_finding_count / r1_finding_count`. If consistently <10%, consider dropping to 1 round.
+2. **Verdict change rate** — `verdict_change_rate`: % of reviewers changing verdict R1→R2. If >60%, revisit broadcast vs selective pairing.
+3. **UNCERTAIN usage rate** — `uncertain_rate`: are reviewers using UNCERTAIN genuinely? Watch for 0% (too confident) and >50% (avoidance).
+4. **Budget vs Standard quality gap** — Does Budget (3 reviewers) miss HIGH findings that Standard catches? Compare `high_finding_count` across modes.
+5. **Reviewer count sensitivity** — On 2 runs, use 7 reviewers instead of 5. Does `high_finding_count` change?
+6. **Injection resistance** — On adversarial content, does the structured finding template hold? Check `R1-digest-log.md` sanitization counts.
+
+**Decisions after 10 runs:** round cap, reviewer count default, broadcast vs selective pairing, Budget default domain specialist.
+
+To review your data:
+```bash
+# View all runs
+cat analysis/miroprism/metrics.tsv | column -t -s $'\t'
+
+# Average verdict change rate
+awk -F'\t' 'NR>1 {sum+=$3; count++} END {print "Avg verdict change rate:", sum/count}' analysis/miroprism/metrics.tsv
+```
 
 ---
 
@@ -731,6 +757,13 @@ Token breakdown (Standard):
 - Phase 2 digest: ~500 (orchestrator)
 - R2 × 5: ~42.5K (~7K in, ~1.5K out each)
 - Synthesis: ~7K
+
+**⚠️ Large artifact warning:** R2 sends the original artifact to every reviewer. If your artifact is >5K tokens (~4K words / ~20KB), multiply R2 cost by the number of reviewers. A 20K-token design doc adds ~100K tokens to Standard R2 alone — pushing total cost to ~$1.50–2.00.
+
+For large artifacts, use one of these strategies:
+- **Store externally:** Reference by file path or URL in R2 instead of pasting verbatim. Saves 15–25% on R2.
+- **Use Budget mode:** 3 reviewers instead of 5 cuts large-artifact R2 cost by 40%.
+- **Truncate context:** If the artifact has clearly irrelevant sections, trim before invoking.
 
 ---
 
