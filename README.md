@@ -64,13 +64,20 @@ That's it. MiroPRISM handles the rest.
 | Bug fixes, minor refactors, reversible decisions | PRISM |
 | Fast checks, urgent reviews | PRISM (or Budget PRISM) |
 
-## Variants
+## Variants & Cost
 
-| Variant | Reviewers | Rounds | Model | Est. Cost |
-|---------|-----------|--------|-------|-----------|
-| Standard | 5 | 2 | Sonnet | ~$0.50–0.80 |
-| Budget | 3 | 2 | Haiku | ~$0.08 |
-| Extended | 5 | 2–3 | Sonnet | ~$0.75–1.20 |
+> Pricing current as of 2026-03-15 (Claude Sonnet 4.6 / Haiku 3.5, Anthropic rates).
+
+| Variant | Reviewers | Rounds | Model | Tokens | Est. Cost |
+|---------|-----------|--------|-------|--------|-----------|
+| Standard | 5 | 2 | Sonnet | ~120K | ~$0.65–1.00 |
+| Standard + large artifact (>5K tokens) | 5 | 2 | Sonnet | ~150K+ | ~$1.00–1.50 |
+| Budget | 3 | 2 | Haiku | ~40K | ~$0.08 |
+| Extended | 5 | 2–3 | Sonnet | ~170K | ~$1.10–1.60 |
+
+Token breakdown (Standard, small artifact): R1×5 ~35K · Phase 2 ~500 · R2×5 ~42.5K · Synthesis ~20–22K
+
+**Large artifact:** R2 sends the original artifact to every reviewer. If >5K tokens (~20KB), multiply R2 cost by reviewer count.
 
 ## File structure
 
@@ -100,8 +107,9 @@ The transparency log (`R1-digest-log.md`) records SHA256 of every R1 input and s
 
 - Requires an agent capable of spawning 5+ parallel subagents
 - R2 token cost is ~2.5–3x PRISM — not appropriate for quick checks
-- Reviewer count (5) is a starting point, not a validated optimum — see Post-Launch Validation Checklist in SKILL.md
+- Reviewer count (5) is a starting point, not a validated optimum — see [Post-Launch Metrics](references/post-launch-metrics.md) after 10 runs
 - Extended mode (3 rounds) adds cost; only use when R2 delta is high
+- Reduces cascade sycophancy — does not eliminate it; the shared digest can still anchor R2 reviewers
 
 ## Relationship to PRISM
 
