@@ -12,10 +12,20 @@ license: MIT
 compatibility: Works with any agent that can spawn subagents
 metadata:
   author: jeremyknows
-  version: "1.3.0"
+  version: "1.4.0"
 ---
 
-# MiroPRISM v1.3 — Adversarial Two-Round Review Protocol
+# MiroPRISM v1.4 — Adversarial Two-Round Review Protocol
+
+## Changes from v1.3.0 → v1.4.0
+
+| # | Change | Status | Location |
+|---|--------|--------|----------|
+| P0-1 | UNCERTAIN evidence gate: ≥50 chars required or [INCOMPLETE] | ✅ APPLIED | R2 Anti-herding guardrail, Step 10 |
+| P0-2 | Slug collision: removed mtime, PID-only .lock as sole authority | ✅ APPLIED | Step 1 |
+| P0-3 | Per-reviewer counts removed from transparency log | ✅ APPLIED | Step 6 |
+| P0-4 | CHANGELOG section added | ✅ APPLIED | This section |
+| P0-5 | Mode selection decision tree added | ✅ APPLIED | How to Invoke |
 
 Two-round review protocol that **reduces cascade sycophancy** — the pattern where early findings anchor later reviewers' opinions, producing false consensus — through structured evidence-gated disagreement.
 
@@ -41,6 +51,11 @@ Two-round review protocol that **reduces cascade sycophancy** — the pattern wh
 ---
 
 ## How to Invoke MiroPRISM
+
+**Not sure which mode?** Answer 3 questions:
+1. **Is cost a concern?** → Yes → Budget (~$0.08). No → continue.
+2. **Is this architecture, security, or a 6-month+ decision?** → Yes → Standard (~$0.70). No → PRISM is probably sufficient.
+3. **Did R2 surface many new findings (>20% delta) and you want a third pass?** → Extended (~$1.20).
 
 | Mode | Say This | Reviewers | Rounds | Model | Est. Cost |
 |------|----------|-----------|--------|-------|-----------|
@@ -110,9 +125,11 @@ Derive kebab-case slug from the review subject:
 ```
 Sanitize: lowercase, alphanumeric + hyphens only, max 60 chars. No path separators.
 
-**Collision handling:** If `analysis/miroprism/runs/<slug>/` already exists with mtime <1hr:
-- Append suffix: `<slug>-2`, `<slug>-3`, etc.
-- Use the first available suffix
+**Collision handling:** If `analysis/miroprism/runs/<slug>/` already exists:
+1. Check for a `.lock` file. If present, read the PID and check if it's alive: `kill -0 <pid>`.
+2. If PID alive → run is active. Append suffix: `<slug>-2`, `<slug>-3`, etc.
+3. If PID dead or no `.lock` → stale run. Remove `.lock` and proceed with the existing slug.
+4. Never use directory mtime to determine staleness — it is bypassable and unreliable.
 
 **Working directory:** All paths in this skill are relative to your workspace root.
 - OpenClaw: `~/.openclaw/agents/main/workspace` (or `$WORKSPACE` env var if set)
@@ -233,7 +250,7 @@ analysis/miroprism/runs/<slug>/R1-digest-log.md
 ```
 
 Transparency log contents:
-- Input finding counts per reviewer (counts only, not role names)
+- Total R1 finding count (single number — no per-reviewer breakdown; per-reviewer counts enable statistical de-anonymization)
 - Sanitization counts (e.g., "3 code blocks stripped, 2 URLs replaced, 1 JSON block replaced")
 - SHA256 of each R1 input file (for post-hoc verification)
 - Any findings excluded or reframed, with rationale
@@ -272,7 +289,8 @@ ROUND 2 RULES:
    (may update your verdict)
 2. DISAGREE with a finding → cite contradicting evidence or name the specific
    logical flaw in the finding's reasoning (may update your verdict)
-3. UNCERTAIN on a finding → state what evidence would resolve it
+3. UNCERTAIN on a finding → state what evidence would resolve it, minimum 50 chars.
+   UNCERTAIN with <50 chars of reasoning = [INCOMPLETE], does NOT count toward consensus.
    (valid and preferred over weak agreement; may update your verdict)
 
 Non-response to a finding = `[INCOMPLETE]` — reported separately in synthesis, does NOT count toward consensus. Respond to ALL findings in the digest.
@@ -586,7 +604,8 @@ ROUND 2 RULES:
    (may update your verdict)
 2. DISAGREE with a finding → cite contradicting evidence or name the specific
    logical flaw in the finding's reasoning (may update your verdict)
-3. UNCERTAIN on a finding → state what evidence would resolve it
+3. UNCERTAIN on a finding → state what evidence would resolve it, minimum 50 chars.
+   UNCERTAIN with <50 chars of reasoning = [INCOMPLETE], does NOT count toward consensus.
    (valid and preferred over weak agreement; may update your verdict)
 
 Non-response to a finding = [INCOMPLETE] — does NOT count toward consensus. Respond to ALL findings in the digest.
