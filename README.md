@@ -2,7 +2,7 @@
 
 > A finding that survives explicit challenge is more reliable than one that was never challenged.
 
-MiroPRISM is a standalone fork of [PRISM](https://github.com/jeremyknows/prism) that adds a mandatory second debate round. Where PRISM runs reviewers in isolation and merges at the end, MiroPRISM broadcasts a sanitized digest of all R1 findings and requires every reviewer to respond with AGREE, DISAGREE, or UNCERTAIN — with independent evidence required for each stance.
+MiroPRISM is a standalone fork of [PRISM](https://github.com/jeremyknows/PRISM) that adds a mandatory second debate round. Where PRISM runs reviewers in isolation and merges at the end, MiroPRISM broadcasts a sanitized digest of all R1 findings and requires every reviewer to respond with AGREE, DISAGREE, or UNCERTAIN — with independent evidence required for each stance.
 
 **The problem it solves:** PRISM reviewers converge toward consensus without genuine disagreement. The first voice anchors everything. MiroPRISM breaks that pattern by forcing explicit engagement with opposing findings before synthesis.
 
@@ -17,22 +17,37 @@ MiroPRISM is a standalone fork of [PRISM](https://github.com/jeremyknows/prism) 
 
 **Claude Code / OpenClaw:**
 ```bash
-git clone https://github.com/jeremyknows/miroprism ~/.openclaw/skills/miroprism
+git clone https://github.com/jeremyknows/MiroPRISM ~/.openclaw/skills/miroprism
+# or SSH:
+git clone git@github.com:jeremyknows/MiroPRISM.git ~/.openclaw/skills/miroprism
 ```
 
 **Cursor / Windsurf / other:**
 ```bash
-git clone https://github.com/jeremyknows/miroprism /path/to/your/skills/miroprism
+git clone https://github.com/jeremyknows/MiroPRISM /path/to/your/skills/miroprism
 ```
 
 Then restart your agent or reload skills.
 
+## Quick Start
+
+1. **Have your artifact ready** — design doc, PR, architecture decision, code file, or any text you need reviewed
+2. Say: `"MiroPRISM this"` and provide the artifact inline or as a file path
+3. Wait ~20 min (Standard) or ~5 min (Budget)
+4. Read synthesis at `analysis/miroprism/archive/<slug>/YYYY-MM-DD-review-1.md`
+
+**Reading the output:**
+- **`[HIGH]`** findings — challenged by another reviewer and survived. Act on these.
+- **`[STANDARD: VALIDATION REQUIRED]`** — not challenged. May be correct, but not confirmed under adversarial conditions. Verify independently.
+- **Unresolved Disagreements** — genuine expert split on the same evidence. Use these for your final call.
+- **Final Verdict** — APPROVE / APPROVE WITH CONDITIONS / NEEDS WORK / REJECT
+
+That's it. MiroPRISM handles the rest.
+
 ## Usage
 
-Just say it — no configuration needed:
-
 ```
-"MiroPRISM this"                              → Standard (5 reviewers, 2 rounds, Sonnet)
+"MiroPRISM this"                              → Standard (5 reviewers, 2 rounds, Sonnet ~$0.70)
 "Budget MiroPRISM"                            → 3 reviewers, 2 rounds, Haiku (~$0.08)
 "Budget MiroPRISM with Performance"           → Security + DA + Performance
 "MiroPRISM this, max 3 rounds"                → Auto-triggers R3 if R2 delta >20%

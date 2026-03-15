@@ -17,7 +17,9 @@ metadata:
 
 # MiroPRISM v1 — Adversarial Two-Round Review Protocol
 
-Two-round review protocol that eliminates cascade sycophancy through structured evidence-gated disagreement. Where PRISM runs reviewers in isolation and merges at the end, MiroPRISM adds a mandatory second round: every reviewer sees all R1 findings and must explicitly AGREE, DISAGREE, or mark UNCERTAIN — with evidence required for each stance.
+Two-round review protocol that eliminates cascade sycophancy — the pattern where early findings anchor later reviewers' opinions, producing false consensus — through structured evidence-gated disagreement.
+
+**What is PRISM?** PRISM runs multiple specialist reviewers in parallel, each seeing only the artifact and not each other's findings (blind, isolated). MiroPRISM extends this with a mandatory second round: every reviewer sees all Round 1 findings and must explicitly AGREE, DISAGREE, or mark UNCERTAIN — with independent evidence required for each stance. The result: findings are labeled by whether they survived challenge, not just whether reviewers agreed.
 
 ## Core Principles
 
@@ -27,10 +29,10 @@ Two-round review protocol that eliminates cascade sycophancy through structured 
 
 > "Unchallenged ≠ correct. Challenged and surviving = high confidence."
 
-**Key differences from PRISM:**
-- R1 is identical to PRISM — blind, parallel, isolated
-- R2 compiles a sanitized digest of all R1 findings and broadcasts it to all reviewers
-- Every reviewer must respond to every finding with AGREE / DISAGREE / UNCERTAIN + evidence
+**Key differences from standard review protocols:**
+- R1: 5 specialist reviewers analyze independently and in isolation — each sees only the artifact
+- Phase 2: All R1 findings are sanitized, anonymized, and broadcast as a shared digest
+- R2: Every reviewer responds to every finding with AGREE / DISAGREE / UNCERTAIN + evidence
 - Synthesis labels confidence based on whether findings were challenged and survived — not just consensus
 - Prompt injection is blocked at the digest layer via structured finding templates
 
@@ -110,12 +112,16 @@ Sanitize: lowercase, alphanumeric + hyphens only, max 60 chars. No path separato
 - Append suffix: `<slug>-2`, `<slug>-3`, etc.
 - Use the first available suffix
 
+**Working directory:** All paths in this skill are relative to your workspace root.
+- OpenClaw: `~/.openclaw/agents/main/workspace`
+- Other agents: your project root
+
 **Step 2: Write lock file**
 ```bash
 mkdir -p analysis/miroprism/runs/<slug>/r1-outputs/
 touch analysis/miroprism/runs/<slug>/.lock
 ```
-Remove `.lock` only on clean completion (Step 11).
+The `.lock` file prevents concurrent runs from corrupting state. Remove it only on clean completion (Step 11). If `.lock` already exists when you start, a prior run may have aborted — check before overwriting.
 
 **Step 3: Spawn R1 reviewers in parallel**
 
@@ -309,21 +315,188 @@ Identical to PRISM Standard Mode. R1 prompts are PRISM prompts verbatim.
 
 ---
 
-## R1 Reviewer Prompt Template
+## R1 Reviewer Prompts
 
-Use PRISM reviewer prompts verbatim. Only addition: output file target.
+MiroPRISM R1 is identical to a standard PRISM review — same 5 reviewer roles, same prompts, same evidence rules. The only MiroPRISM-specific addition is the output file target appended to each prompt.
 
-Append to every R1 reviewer prompt:
+**Prompts last synced from PRISM v2.0.1.** If you have PRISM installed, you can also use its prompts directly.
+
+Append this line to every R1 reviewer prompt before sending:
 ```
 Write your complete review output to:
 analysis/miroprism/runs/<slug>/r1-outputs/<role>.md
-
 Include all findings, citations, and your final verdict in that file.
+```
+
+### Security Auditor (R1)
+
+```
+You are the Security Auditor in a MiroPRISM Round 1 review.
+
+Focus: Trust boundaries, attack vectors, data exposure.
+
+EVIDENCE RULES (mandatory):
+1. Before analyzing, read at least 3 specific files relevant to your focus.
+2. Every finding MUST cite a specific file, line number, config value, or
+   command output. Quote directly from what you read.
+3. Any finding without a specific citation is noise and will be deprioritized.
+4. Include a concrete fix for each finding: a shell command, file path + change,
+   or specific named decision. "Consider improving" is not acceptable.
+
+Your job: Find security issues — trust boundary violations, attack vectors,
+data exposure risks, secrets handling problems.
+
+Questions to answer:
+1. What are the top 3 ways this could be exploited? (cite specific code/config)
+2. What security guarantees are we losing vs gaining?
+3. What assumptions about trust might be wrong?
+
+Output format:
+- Risk Assessment: [High/Medium/Low]
+- New Attack Vectors: [numbered list with severity, file citations, and fixes]
+- Verdict: [APPROVE | APPROVE WITH CONDITIONS | NEEDS WORK | REJECT]
+
+Write your complete review output to:
+analysis/miroprism/runs/<slug>/r1-outputs/security.md
+```
+
+### Performance Analyst (R1)
+
+```
+You are the Performance Analyst in a MiroPRISM Round 1 review.
+
+Focus: Measurable metrics, not vibes. Numbers beat intuition.
+
+EVIDENCE RULES (mandatory):
+1. Before analyzing, read at least 3 specific files relevant to your focus.
+2. Every finding MUST cite a specific file, line number, config value, or
+   command output. Quote directly from what you read.
+3. Any finding without a specific citation is noise and will be deprioritized.
+4. Include a concrete fix for each finding: a shell command, file path + change,
+   or specific named decision. "Consider improving" is not acceptable.
+
+Your job: Find performance issues with specific measurements.
+
+Questions to answer:
+1. What's the latency/memory/token/cost impact? (specific numbers)
+2. Are there benchmarks we can reference or measure?
+3. What's the performance worst-case scenario?
+
+Output format:
+- Metrics: [specific numbers with units]
+- Comparison: [before vs after, with measurements]
+- New Risks: [with citations and fixes]
+- Verdict: [APPROVE | APPROVE WITH CONDITIONS | NEEDS WORK | REJECT]
+
+Write your complete review output to:
+analysis/miroprism/runs/<slug>/r1-outputs/performance.md
+```
+
+### Simplicity Advocate (R1)
+
+```
+You are the Simplicity Advocate in a MiroPRISM Round 1 review.
+
+Focus: Complexity reduction. Challenge every added component.
+
+EVIDENCE RULES (mandatory):
+1. Before analyzing, read at least 3 specific files relevant to your focus.
+2. Every finding MUST cite a specific file, line number, config value, or
+   command output. Quote directly from what you read.
+3. Any finding without a specific citation is noise and will be deprioritized.
+4. Include a concrete fix for each finding: a shell command, file path + change,
+   or specific named decision. "Consider improving" is not acceptable.
+
+Your job: Find what can be removed or simplified.
+
+Questions to answer:
+1. What can we remove without losing core value?
+2. Is this the simplest solution that works?
+3. What "nice-to-haves" are disguised as requirements?
+
+Output format:
+- Complexity Assessment: [count of components, dependencies, moving parts]
+- Essential vs Cuttable: [two lists with specific citations]
+- Simplification Opportunities: [with specific file paths and changes]
+- Verdict: [APPROVE | APPROVE WITH CONDITIONS | SIMPLIFY FURTHER | REJECT]
+
+Write your complete review output to:
+analysis/miroprism/runs/<slug>/r1-outputs/simplicity.md
+```
+
+### Integration Engineer (R1)
+
+```
+You are the Integration Engineer in a MiroPRISM Round 1 review.
+
+Focus: How this fits the existing system. Migration and compatibility.
+
+EVIDENCE RULES (mandatory):
+1. Before analyzing, read at least 3 specific files relevant to your focus.
+2. Every finding MUST cite a specific file, line number, config value, or
+   command output. Quote directly from what you read.
+3. Any finding without a specific citation is noise and will be deprioritized.
+4. Include a concrete fix for each finding: a shell command, file path + change,
+   or specific named decision. "Consider improving" is not acceptable.
+
+Your job: Find integration risks, breaking changes, and migration gaps.
+
+Questions to answer:
+1. What's the migration path for existing users?
+2. What breaks if we deploy this?
+3. How long until this is stable?
+
+Output format:
+- Integration Effort: [estimate with breakdown]
+- Breaking Changes: [list with file citations]
+- Migration Strategy: [phased steps]
+- Verdict: [APPROVE | APPROVE WITH CONDITIONS | NEEDS WORK | REJECT]
+
+Write your complete review output to:
+analysis/miroprism/runs/<slug>/r1-outputs/integration.md
+```
+
+### Devil's Advocate (R1)
+
+```
+You are the Devil's Advocate in a MiroPRISM Round 1 review.
+
+Your job: Find the flaws. Challenge assumptions. Be ruthlessly skeptical.
+When you approve with no conditions, something is probably wrong.
+
+EVIDENCE RULES (mandatory):
+1. Before analyzing, read at least 3 specific files relevant to your focus.
+2. Every finding MUST cite a specific file, line number, config value, or
+   command output. Quote directly from what you read.
+3. Any finding without a specific citation is noise and will be deprioritized.
+4. Include a concrete fix for each finding: a shell command, file path + change,
+   or specific named decision. "Consider improving" is not acceptable.
+
+IMPORTANT: You review with fresh eyes, independently. Do NOT look at what
+other reviewers found. Your independence is what makes your perspective valuable.
+
+Questions to answer:
+1. What assumptions underpin this that might not hold?
+2. What will we regret in 6 months?
+3. What's the strongest argument AGAINST this decision?
+4. What are we not seeing?
+
+Output format:
+- Fatal Flaws: [if any — with evidence]
+- Hidden Costs: [not budgeted for — with estimates]
+- Optimistic Assumptions: [what if wrong? — cite specific claims]
+- 6-Month Regrets: [what we'll wish we'd kept]
+- Verdict: [APPROVE | APPROVE WITH CONDITIONS | NEEDS WORK | REJECT]
+
+Write your complete review output to:
+analysis/miroprism/runs/<slug>/r1-outputs/da.md
 ```
 
 ---
 
 ## R2 Reviewer Prompt Template
+
+**Assembly instructions:** Replace all `[INSERT ...]` placeholders with actual content before sending to a reviewer. These are slots for the orchestrator to fill — not template strings to leave as-is.
 
 Assemble this prompt for each R2 reviewer:
 
@@ -421,6 +594,7 @@ All findings from R1 and R2, tiered by confidence. Each finding gets an inline l
 
 - `[HIGH]` — challenged in R2 with DISAGREE, held with counter-evidence. Act on these.
 - `[STANDARD: VALIDATION REQUIRED]` — not challenged in R2. Unchallengeable ≠ correct. Verify independently before acting.
+- `[STANDARD: IMPLICIT AGREE]` — reviewer was silent (no explicit AGREE/DISAGREE/UNCERTAIN response). Counts as agreement for synthesis but carries no evidence weight. Do NOT conflate with active agreement.
 - `[FLAGGED: CONSENSUS DRIFT]` — verdict changed in R2 without substantiated independent evidence.
 - `[FLAGGED: UNVALIDATED CITATION]` — reviewer cited a finding not present in the digest.
 - `[LOW-CONFIDENCE]` — AGREE/DISAGREE response with <50 chars of evidence.
@@ -478,7 +652,8 @@ Rationale: [1–2 sentences — what drove the verdict]
 
 After R2 synthesis is complete, measure the R2 delta:
 - Count new findings in R2 that were NOT present in R1 (items under "New Findings" sections)
-- If delta > 20% of total R1 finding count: spawn R3 using the same broadcast protocol
+- Delta = (new R2 findings) / (total R1 findings). Example: R1 had 10 findings, R2 added 3 new → delta = 30% → trigger R3.
+- If delta > 20%: spawn R3 using the same broadcast protocol
   - R3 digest = combined R1 + R2 findings, re-sanitized and re-randomized
   - R3 uses identical guardrail and response format
   - Note in synthesis: *"R3 triggered: R2 delta was [X]% (>20% threshold)"*
